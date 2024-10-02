@@ -15,3 +15,5 @@
 - Profil Yönetimi: Kullanıcılar profil bilgilerini ve avatarlarını düzenleyebilir.
 
 ### Screen
+
+<img src="screen.gif" />

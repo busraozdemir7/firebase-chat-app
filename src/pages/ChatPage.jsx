@@ -1,10 +1,11 @@
-import { collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, onSnapshot, orderBy, query, where, } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Message from '../components/Message';
 
 const ChatPage = ({ room, setRoom }) => {
     const [messages, setMessages] = useState([]);
+    const lastMsg = useRef();
 
     // mesaj gönderme fonksiyonu
     const sendMessage = async (e) => {
@@ -15,7 +16,7 @@ const ChatPage = ({ room, setRoom }) => {
 
         // kolleksiyona yeni döküman ekle
         await addDoc(messagesCol, {
-            text: e.target[0].value,
+            text: e.target[0].value.trim(),
             room,
             author: {
                 id: auth.currentUser.uid,
@@ -34,8 +35,15 @@ const ChatPage = ({ room, setRoom }) => {
         // abone olunacak kolleksiyonun referansını al
         const messagesCol = collection(db, 'messages');
 
+        //verileri çekerken kullanılacak sorguyu oluştur
+        const q = query(
+            messagesCol,
+            where("room", "==", room),
+            orderBy("createdAt", "asc")
+        );
+
         // onSnapshot anlık olarak kolleksiyondaki değişimleri izler kolleksiyon her değiştiğinde verdiğimiz fonksiyon ile kolleksiyondaki güncel dökümanlara erişiriz
-        onSnapshot(messagesCol, (snapshot) => {
+        const unsub = onSnapshot(q, (snapshot) => {
             // verilerin geçici olarak tutulduğu dizi
             const tempMsg = [];
 
@@ -44,25 +52,44 @@ const ChatPage = ({ room, setRoom }) => {
 
             // mesajları state'e aktar
             setMessages(tempMsg);
+
+            //kullanıcının sohbet sayfasından ayrılma anında aboneliği durdur
+            return () => {
+                unsub();
+            };
         });
     }, []);
+
+    // yeni mesaj gönderilme olayını izle
+    useEffect(() => {
+        lastMsg.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
 
     return (
         <div className="chat-page">
             <header>
-                <p>{auth.currentUser?.displayName}</p>
+                <p>{auth.currentUser.displayName}</p>
                 <p>{room}</p>
                 <button onClick={() => setRoom(null)}>Farklı Oda</button>
             </header>
 
             <main>
-                {messages.map((data, i) => (
-                    <Message data={data} key={i} />
-                ))}
+                {messages.length > 0 ? (
+                    <>
+                        {messages.map((data, i) => (
+                            <Message data={data} key={i} />
+                        ))}
+                        <div ref={lastMsg} />
+                    </>
+                ) : (
+                    <p className="warn">
+                        Henüz hiç mesaj gönderilmedi. İlk mesajı siz gönderiniz.
+                    </p>
+                )}
             </main>
 
             <form onSubmit={sendMessage}>
-                <input placeholder="mesajınızı yazınız..." type="text" />
+                <input placeholder="mesajınızı yazınız..." type="text" required />
                 <button>Gönder</button>
             </form>
         </div>

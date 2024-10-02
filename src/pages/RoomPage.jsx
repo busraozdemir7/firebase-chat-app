@@ -14,7 +14,7 @@ const RoomPage = ({ setIsAuth, setRoom }) => {
         e.preventDefault();
 
         // inputtaki değeri al
-        const room = e.target[0].value;
+        const room = e.target[0].value.trim().toLowerCase();
 
         // oda ismini state'e aktar
         setRoom(room);
